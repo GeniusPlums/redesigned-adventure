@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod.server
+      args:
+        - NODE_ENV=production
+        - DATABASE_URL=${DATABASE_URL}
+        - REDIS_HOST=${REDIS_HOST}
+        - REDIS_PORT=${REDIS_PORT}
+        - REDIS_PASSWORD=${REDIS_PASSWORD}
+        - REDIS_USERNAME=${REDIS_USERNAME}
+        - CLICKHOUSE_HOST=${CLICKHOUSE_HOST}
+        - CLICKHOUSE_PORT=${CLICKHOUSE_PORT}
+        - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+        - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+        - CLICKHOUSE_DB=${CLICKHOUSE_DB}
+        - MONGODB_URI=${MONGODB_URI}
+        - KAFKA_BROKERS=${KAFKA_BROKERS}
+        - KAFKA_CLIENT_ID=${KAFKA_CLIENT_ID}
+        - KAFKA_GROUP_ID=${KAFKA_GROUP_ID}
+        - JOURNEY_ONBOARDING=${JOURNEY_ONBOARDING}
+        - SYNCHRONIZE=${SYNCHRONIZE}
+        - BACKEND_SENTRY_AUTH_TOKEN=${BACKEND_SENTRY_AUTH_TOKEN}
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_USERNAME=${REDIS_USERNAME}
+      - CLICKHOUSE_HOST=${CLICKHOUSE_HOST}
+      - CLICKHOUSE_PORT=${CLICKHOUSE_PORT}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+      - CLICKHOUSE_DB=${CLICKHOUSE_DB}
+      - MONGODB_URI=${MONGODB_URI}
+      - KAFKA_BROKERS=${KAFKA_BROKERS}
+      - KAFKA_CLIENT_ID=${KAFKA_CLIENT_ID}
+      - KAFKA_GROUP_ID=${KAFKA_GROUP_ID}
+      - JOURNEY_ONBOARDING=${JOURNEY_ONBOARDING}
+      - SYNCHRONIZE=${SYNCHRONIZE}
+    restart: unless-stopped
+    networks:
+      - laudspeaker_network
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod.client
+      args:
+        - NODE_ENV=production
+        - REACT_APP_API_BASE_URL=http://localhost:3001
+        - REACT_APP_WS_BASE_URL=ws://localhost:3001
+        - FRONTEND_SENTRY_AUTH_TOKEN=${FRONTEND_SENTRY_AUTH_TOKEN}
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_BASE_URL=http://localhost:3001
+      - REACT_APP_WS_BASE_URL=ws://localhost:3001
+    depends_on:
+      - server
+    restart: unless-stopped
+    networks:
+      - laudspeaker_network
+
+networks:
+  laudspeaker_network:
+    driver: bridge

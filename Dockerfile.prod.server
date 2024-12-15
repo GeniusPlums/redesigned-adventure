@@ -1,25 +1,130 @@
-
 # To build : docker build -f Dockerfile.prod.server -t laudspeaker-api:latest .
 # To run: docker run -it -p 3001:3001 --rm laudspeaker-api:latest
 FROM node:16 as build
+
+# Build arguments
+ARG NODE_ENV
+ARG DATABASE_URL
+ARG REDIS_HOST
+ARG REDIS_PORT
+ARG REDIS_PASSWORD
+ARG REDIS_USERNAME
+ARG CLICKHOUSE_HOST
+ARG CLICKHOUSE_PORT
+ARG CLICKHOUSE_USER
+ARG CLICKHOUSE_PASSWORD
+ARG CLICKHOUSE_DB
+ARG MONGODB_URI
+ARG KAFKA_BROKERS
+ARG KAFKA_CLIENT_ID
+ARG KAFKA_GROUP_ID
+ARG JOURNEY_ONBOARDING
+ARG SYNCHRONIZE
 ARG BACKEND_SENTRY_AUTH_TOKEN
+
+# Set environment variables
+ENV NODE_ENV=${NODE_ENV}
+ENV DATABASE_URL=${DATABASE_URL}
+ENV REDIS_HOST=${REDIS_HOST}
+ENV REDIS_PORT=${REDIS_PORT}
+ENV REDIS_PASSWORD=${REDIS_PASSWORD}
+ENV REDIS_USERNAME=${REDIS_USERNAME}
+ENV CLICKHOUSE_HOST=${CLICKHOUSE_HOST}
+ENV CLICKHOUSE_PORT=${CLICKHOUSE_PORT}
+ENV CLICKHOUSE_USER=${CLICKHOUSE_USER}
+ENV CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+ENV CLICKHOUSE_DB=${CLICKHOUSE_DB}
+ENV MONGODB_URI=${MONGODB_URI}
+ENV KAFKA_BROKERS=${KAFKA_BROKERS}
+ENV KAFKA_CLIENT_ID=${KAFKA_CLIENT_ID}
+ENV KAFKA_GROUP_ID=${KAFKA_GROUP_ID}
+ENV JOURNEY_ONBOARDING=${JOURNEY_ONBOARDING}
+ENV SYNCHRONIZE=${SYNCHRONIZE}
 ENV SENTRY_AUTH_TOKEN=${BACKEND_SENTRY_AUTH_TOKEN}
 ENV SENTRY_ORG=laudspeaker-rb
 ENV SENTRY_PROJECT=node
+
 WORKDIR /app
-COPY ./packages/server/package.json /app
-RUN npm install --legacy-peer-deps
-COPY . /app
+
+# Copy package files
+COPY ./packages/server/package*.json ./
+COPY ./package*.json ./
+
+# Set npm config for better network reliability
+RUN npm config set fetch-retry-mintimeout 100000
+RUN npm config set fetch-retry-maxtimeout 600000
+RUN npm config set fetch-timeout 600000
+RUN npm config set registry https://registry.npmjs.org/
+
+# Install global dependencies needed for build
+RUN npm install -g rimraf
+
+# Install dependencies with increased network timeout
+RUN npm install --legacy-peer-deps --network-timeout=1000000
+
+# Copy source
+COPY . .
+
+# Build
 RUN npm run build:server
 RUN ./node_modules/.bin/sentry-cli releases propose-version > /app/SENTRY_RELEASE
 
+FROM node:16-slim As Production
 
-FROM node:16 As Production
-ARG NODE_ENV=production
+# Build arguments
+ARG NODE_ENV
+ARG DATABASE_URL
+ARG REDIS_HOST
+ARG REDIS_PORT
+ARG REDIS_PASSWORD
+ARG REDIS_USERNAME
+ARG CLICKHOUSE_HOST
+ARG CLICKHOUSE_PORT
+ARG CLICKHOUSE_USER
+ARG CLICKHOUSE_PASSWORD
+ARG CLICKHOUSE_DB
+ARG MONGODB_URI
+ARG KAFKA_BROKERS
+ARG KAFKA_CLIENT_ID
+ARG KAFKA_GROUP_ID
+ARG JOURNEY_ONBOARDING
+ARG SYNCHRONIZE
+
+# Set environment variables
 ENV NODE_ENV=${NODE_ENV}
+ENV DATABASE_URL=${DATABASE_URL}
+ENV REDIS_HOST=${REDIS_HOST}
+ENV REDIS_PORT=${REDIS_PORT}
+ENV REDIS_PASSWORD=${REDIS_PASSWORD}
+ENV REDIS_USERNAME=${REDIS_USERNAME}
+ENV CLICKHOUSE_HOST=${CLICKHOUSE_HOST}
+ENV CLICKHOUSE_PORT=${CLICKHOUSE_PORT}
+ENV CLICKHOUSE_USER=${CLICKHOUSE_USER}
+ENV CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+ENV CLICKHOUSE_DB=${CLICKHOUSE_DB}
+ENV MONGODB_URI=${MONGODB_URI}
+ENV KAFKA_BROKERS=${KAFKA_BROKERS}
+ENV KAFKA_CLIENT_ID=${KAFKA_CLIENT_ID}
+ENV KAFKA_GROUP_ID=${KAFKA_GROUP_ID}
+ENV JOURNEY_ONBOARDING=${JOURNEY_ONBOARDING}
+ENV SYNCHRONIZE=${SYNCHRONIZE}
+
 WORKDIR /app
-COPY ./packages/server/package.json /app
-RUN npm install --only=production --legacy-peer-deps
+
+# Copy package files
+COPY ./packages/server/package*.json ./
+
+# Set npm config for better network reliability
+RUN npm config set fetch-retry-mintimeout 100000
+RUN npm config set fetch-retry-maxtimeout 600000
+RUN npm config set fetch-timeout 600000
+RUN npm config set registry https://registry.npmjs.org/
+
+# Install production dependencies with increased network timeout
+RUN npm install --omit=dev --legacy-peer-deps --network-timeout=1000000
+
+# Copy built files
 COPY --from=build /app/packages/server/dist /app/dist
+
 EXPOSE 3001
 CMD ["node", "dist/src/main.js"]
