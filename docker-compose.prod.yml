@@ -5,20 +5,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
-        - EXTERNAL_URL=${EXTERNAL_URL:-http://localhost:3001}
-        - FRONTEND_SENTRY_AUTH_TOKEN=${FRONTEND_SENTRY_AUTH_TOKEN}
-        - BACKEND_SENTRY_AUTH_TOKEN=${BACKEND_SENTRY_AUTH_TOKEN}
-        - REACT_APP_POSTHOG_HOST=${REACT_APP_POSTHOG_HOST:-https://app.posthog.com}
-        - REACT_APP_POSTHOG_KEY=${REACT_APP_POSTHOG_KEY}
-        - REACT_APP_ONBOARDING_API_KEY=${REACT_APP_ONBOARDING_API_KEY}
+    entrypoint: ["/app/docker-entrypoint.sh"]
     ports:
       - "80:80"
       - "3001:3001"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NAME:-laudspeaker}
+      - DB_SSL=${DB_SSL:-false}
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
@@ -39,6 +37,12 @@ services:
     restart: unless-stopped
     networks:
       - laudspeaker_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 networks:
   laudspeaker_network:
