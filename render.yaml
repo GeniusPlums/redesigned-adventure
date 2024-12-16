@@ -8,6 +8,7 @@ services:
     repo: https://github.com/GeniusPlums/redesigned-adventure.git
     region: singapore
     plan: starter
+    buildCommand: docker-compose -f docker-compose.prod.yml build
     dockerCommand: docker-compose -f docker-compose.prod.yml up
     autoDeploy: true
     scaling:
