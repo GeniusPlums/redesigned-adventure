@@ -2,25 +2,22 @@ previews:
   generation: automatic # Enable preview environments
 
 services:
+  # Main Web Application
   - type: web
-    runtime: docker
-    name: astrazen
-    repo: https://github.com/GeniusPlums/redesigned-adventure.git
+    name: laudspeaker
+    env: docker
     region: singapore
     plan: starter
-    buildCommand: docker-compose -f docker-compose.prod.yml build
-    dockerCommand: docker-compose -f docker-compose.prod.yml up
+    dockerfilePath: ./Dockerfile
+    dockerCommand: /app/docker-entrypoint.sh
     autoDeploy: true
     scaling:
       minInstances: 1
       maxInstances: 3
-      targetMemoryPercent: 60
-      targetCPUPercent: 60
     healthCheckPath: /health
-    domains:
-      - api.laudspeaker.com
     envVars:
-      # Database Configuration
+      - key: NODE_ENV
+        value: production
       - key: DB_HOST
         sync: false
       - key: DB_PORT
@@ -33,22 +30,20 @@ services:
         value: laudspeaker
       - key: DB_SSL
         value: "true"
-
-      # Redis Configuration
       - key: REDIS_HOST
         fromService:
           type: redis
-          name: laudspeaker-redis
+          name: redis-main
           property: host
       - key: REDIS_PORT
         fromService:
           type: redis
-          name: laudspeaker-redis
+          name: redis-main
           property: port
       - key: REDIS_PASSWORD
         generateValue: true
-
-      # Clickhouse Configuration
+      - key: REDIS_USERNAME
+        sync: false
       - key: CLICKHOUSE_HOST
         sync: false
       - key: CLICKHOUSE_PORT
@@ -59,22 +54,14 @@ services:
         generateValue: true
       - key: CLICKHOUSE_DB
         value: laudspeaker
-
-      # MongoDB Configuration
       - key: MONGODB_URI
         sync: false
-
-      # Kafka Configuration
       - key: KAFKA_BROKERS
         sync: false
       - key: KAFKA_CLIENT_ID
         value: laudspeaker-client
       - key: KAFKA_GROUP_ID
         value: laudspeaker-consumer-group
-
-      # Application Configuration
-      - key: NODE_ENV
-        value: production
       - key: JOURNEY_ONBOARDING
         value: "true"
       - key: SYNCHRONIZE
@@ -83,12 +70,107 @@ services:
         value: "https://api.laudspeaker.com"
       - key: FRONTEND_URL
         value: "https://app.laudspeaker.com"
+    ports:
+      - port: 80
+        protocol: TCP
+      - port: 3001
+        protocol: TCP
 
-  # Redis instance for caching
+  # Redis service
   - type: redis
-    name: laudspeaker-redis
+    name: redis-main
     ipAllowList:
       - source: 0.0.0.0/0
         description: allow-all
     plan: starter
     maxmemoryPolicy: allkeys-lru
+
+  # Background Workers
+  - type: worker
+    name: laudspeaker-queue
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: yarn queue
+    envVars:
+      - fromGroup: laudspeaker-env
+
+  - type: worker
+    name: laudspeaker-cron
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: yarn cron
+    envVars:
+      - fromGroup: laudspeaker-env
+
+  # Database Services
+  - type: pserv
+    name: postgres
+    env: docker
+    plan: starter
+    dockerfilePath: ./services/postgres/Dockerfile
+    disk:
+      name: postgres-data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 10
+    envVars:
+      - key: POSTGRES_USER
+        generateValue: true
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+      - key: POSTGRES_DB
+        value: laudspeaker
+
+  - type: pserv
+    name: clickhouse
+    env: docker
+    plan: starter
+    dockerfilePath: ./services/clickhouse/Dockerfile
+    disk:
+      name: clickhouse-data
+      mountPath: /var/lib/clickhouse
+      sizeGB: 20
+    healthCheckPath: /ping
+    envVars:
+      - key: CLICKHOUSE_USER
+        generateValue: true
+      - key: CLICKHOUSE_PASSWORD
+        generateValue: true
+
+envVarGroups:
+  - name: laudspeaker-env
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        fromService:
+          name: postgres
+          type: pserv
+          property: host
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_USER
+        fromService:
+          name: postgres
+          type: pserv
+          envVarKey: POSTGRES_USER
+      - key: DB_PASSWORD
+        fromService:
+          name: postgres
+          type: pserv
+          envVarKey: POSTGRES_PASSWORD
+      - key: DB_NAME
+        value: laudspeaker
+      - key: REDIS_HOST
+        fromService:
+          name: redis
+          type: pserv
+          property: host
+      - key: REDIS_PORT
+        value: "6379"
+      - key: CLICKHOUSE_HOST
+        fromService:
+          name: clickhouse
+          type: pserv
+          property: host
+      - key: CLICKHOUSE_PORT
+        value: "8123"
