@@ -51,16 +51,17 @@ COPY ./packages/server/package*.json ./
 COPY ./package*.json ./
 
 # Set npm config for better network reliability
-RUN npm config set fetch-retry-mintimeout 100000
-RUN npm config set fetch-retry-maxtimeout 600000
-RUN npm config set fetch-timeout 600000
-RUN npm config set registry https://registry.npmjs.org/
+RUN npm config set fetch-retry-mintimeout 20000 \
+    && npm config set fetch-retry-maxtimeout 120000 \
+    && npm config set fetch-timeout 300000 \
+    && npm config set fetch-retries 5 \
+    && npm config set registry https://registry.npmjs.org/
 
 # Install global dependencies needed for build
-RUN npm install -g rimraf @nestjs/cli
+RUN npm install -g rimraf @nestjs/cli --fetch-retries=5 --fetch-retry-factor=2 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 
 # Install dependencies with increased network timeout
-RUN npm install --legacy-peer-deps --network-timeout=1000000
+RUN npm install --legacy-peer-deps --network-timeout=300000 --fetch-retries=5 --fetch-retry-factor=2 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 
 # Copy source
 COPY . .
@@ -69,7 +70,7 @@ COPY . .
 RUN npm run build:server
 RUN ./node_modules/.bin/sentry-cli releases propose-version > /app/SENTRY_RELEASE
 
-FROM node:16-slim As Production
+FROM node:16-slim as production
 
 # Build arguments
 ARG NODE_ENV
@@ -115,13 +116,14 @@ WORKDIR /app
 COPY ./packages/server/package*.json ./
 
 # Set npm config for better network reliability
-RUN npm config set fetch-retry-mintimeout 100000
-RUN npm config set fetch-retry-maxtimeout 600000
-RUN npm config set fetch-timeout 600000
-RUN npm config set registry https://registry.npmjs.org/
+RUN npm config set fetch-retry-mintimeout 20000 \
+    && npm config set fetch-retry-maxtimeout 120000 \
+    && npm config set fetch-timeout 300000 \
+    && npm config set fetch-retries 5 \
+    && npm config set registry https://registry.npmjs.org/
 
 # Install production dependencies with increased network timeout
-RUN npm install --omit=dev --legacy-peer-deps --network-timeout=1000000
+RUN npm install --omit=dev --legacy-peer-deps --network-timeout=300000 --fetch-retries=5 --fetch-retry-factor=2 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 
 # Copy built files
 COPY --from=build /app/packages/server/dist /app/dist

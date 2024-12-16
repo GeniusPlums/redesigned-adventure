@@ -2,43 +2,46 @@ services:
   - type: web
     name: laudspeaker
     env: docker
-    dockerCommand: docker-compose -f docker-compose.prod.yml up
+    region: singapore
+    plan: starter
+    dockerCommand: docker-compose -f docker-compose.prod.yml build && docker-compose -f docker-compose.prod.yml up
+    buildCommand: docker-compose -f docker-compose.prod.yml build
     envVars:
       # Database Configuration
       - key: DATABASE_URL
-        value: postgresql://astrazen_user:YlENu30fCsf3qpjzKggLBm0EWJb6LbMS@dpg-otc292ogph6c73aabl50-a/astrazen
+        sync: false  # Use Render Dashboard to set this
       - key: DATABASE_SSL
-        value: true
+        value: "true"
 
       # Redis Configuration
       - key: REDIS_HOST
-        value: redis-12988.c283.us-east-1-4.ec2.redns.redis-cloud.com
+        sync: false
       - key: REDIS_PORT
-        value: 12988
+        sync: false
       - key: REDIS_PASSWORD
-        value: cYRKTgLTXTiI1asnwQgsgISDy3ctHm8R
+        sync: false
       - key: REDIS_USERNAME
-        value: default
+        sync: false
 
       # Clickhouse Configuration
       - key: CLICKHOUSE_HOST
-        value: okai3ae0ad.ap-south-1.aws.clickhouse.cloud
+        sync: false
       - key: CLICKHOUSE_PORT
-        value: 8443
+        sync: false
       - key: CLICKHOUSE_USER
-        value: default
+        sync: false
       - key: CLICKHOUSE_PASSWORD
-        value: fFc.5FoDUOZZQ
+        sync: false
       - key: CLICKHOUSE_DB
-        value: default
+        sync: false
 
       # MongoDB Configuration
       - key: MONGODB_URI
-        value: mongodb+srv://2f1YzyuwkogQRbWa:2f1YzyuwkogQRbWaaastrazen.q4mjj.mongodb.net/?authSource=admin
+        sync: false
 
       # Kafka Configuration
       - key: KAFKA_BROKERS
-        value: kafka1:20092
+        sync: false
       - key: KAFKA_CLIENT_ID
         value: laudspeaker-client
       - key: KAFKA_GROUP_ID
@@ -48,21 +51,19 @@ services:
       - key: NODE_ENV
         value: production
       - key: JOURNEY_ONBOARDING
-        value: true
+        value: "true"
       - key: SYNCHRONIZE
-        value: true
+        value: "true"
       - key: PORT
-        value: 3001
-      
+        value: "3001"
+
       # Frontend Configuration
       - key: REACT_APP_API_BASE_URL
-        sync: false
+        value: https://laudspeaker.onrender.com  # Will be the URL of your service
       - key: REACT_APP_WS_BASE_URL
-        sync: false
+        value: wss://laudspeaker.onrender.com  # Will be the URL of your service
 
     healthCheckPath: /health
-    buildCommand: docker-compose -f docker-compose.prod.yml build
-    startCommand: docker-compose -f docker-compose.prod.yml up -d
 
 databases:
   - name: laudspeaker-db
