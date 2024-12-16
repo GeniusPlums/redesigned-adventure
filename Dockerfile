@@ -15,16 +15,15 @@ RUN apt-get update && apt-get install -y \
 
 # Copy package files
 COPY package*.json ./
-COPY yarn.lock ./
 
 # Install dependencies
-RUN yarn install
+RUN npm install
 
 # Copy application files
 COPY . .
 
 # Build the application
-RUN yarn build
+RUN npm run build
 
 # Create a non-root user
 RUN useradd -m appuser && chown -R appuser:appuser /app
