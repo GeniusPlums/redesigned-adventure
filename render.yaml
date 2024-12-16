@@ -1,0 +1,163 @@
+previews:
+  generation: automatic # Enable preview environments
+
+services:
+  # Main Web Application
+  - type: web
+    name: laudspeaker
+    env: docker
+    region: singapore
+    plan: starter
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+      targetMemoryPercent: 60
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        sync: false
+      - key: REDIS_PASSWORD
+        sync: false
+      - key: REDIS_USERNAME
+        sync: false
+      - key: CLICKHOUSE_HOST
+        sync: false
+      - key: CLICKHOUSE_PORT
+        sync: false
+      - key: CLICKHOUSE_USER
+        sync: false
+      - key: CLICKHOUSE_PASSWORD
+        sync: false
+      - key: CLICKHOUSE_DB
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: KAFKA_BROKERS
+        sync: false
+      - key: KAFKA_CLIENT_ID
+        sync: false
+      - key: RUN_MIGRATIONS
+        value: "true"
+    ports:
+      - port: 80
+        protocol: http
+      - port: 3001
+        protocol: http
+
+  # Redis service
+  - type: redis
+    name: redis-main
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: allow-all
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+
+  # Background Workers
+  - type: worker
+    name: laudspeaker-queue
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: yarn queue
+    envVars:
+      - fromGroup: laudspeaker-env
+
+  - type: worker
+    name: laudspeaker-cron
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: yarn cron
+    envVars:
+      - fromGroup: laudspeaker-env
+
+  # Database Services
+  - type: pserv
+    name: postgres
+    env: docker
+    plan: starter
+    dockerfilePath: ./services/postgres/Dockerfile
+    disk:
+      name: postgres-data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 10
+    envVars:
+      - key: POSTGRES_USER
+        generateValue: true
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+      - key: POSTGRES_DB
+        value: laudspeaker
+
+  - type: pserv
+    name: clickhouse
+    env: docker
+    plan: starter
+    dockerfilePath: ./services/clickhouse/Dockerfile
+    disk:
+      name: clickhouse-data
+      mountPath: /var/lib/clickhouse
+      sizeGB: 20
+    healthCheckPath: /ping
+    envVars:
+      - key: CLICKHOUSE_USER
+        generateValue: true
+      - key: CLICKHOUSE_PASSWORD
+        generateValue: true
+
+envVarGroups:
+  - name: laudspeaker-env
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        fromService:
+          name: postgres
+          type: pserv
+          property: host
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_USER
+        fromService:
+          name: postgres
+          type: pserv
+          envVarKey: POSTGRES_USER
+      - key: DB_PASSWORD
+        fromService:
+          name: postgres
+          type: pserv
+          envVarKey: POSTGRES_PASSWORD
+      - key: DB_NAME
+        value: laudspeaker
+      - key: REDIS_HOST
+        fromService:
+          name: redis
+          type: pserv
+          property: host
+      - key: REDIS_PORT
+        value: "6379"
+      - key: CLICKHOUSE_HOST
+        fromService:
+          name: clickhouse
+          type: pserv
+          property: host
+      - key: CLICKHOUSE_PORT
+        value: "8123"
