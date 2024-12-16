@@ -52,6 +52,10 @@ RUN cd packages/server && \
 RUN npm install --production --legacy-peer-deps && \
     npm install -g typescript@4.9.5 tslib@2.6.2 ts-node@10.9.1
 
+# Copy and set permissions for entrypoint script before user switch
+COPY docker-entrypoint.sh /app/
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Setup user and directories
 RUN adduser --uid 1001 --disabled-password --gecos "" appuser && \
     mkdir -p \
@@ -73,6 +77,3 @@ ENV PORT=3000 \
     NPM_CONFIG_PREFIX=/home/appuser/.npm-global
 
 EXPOSE 80 3001
-
-COPY docker-entrypoint.sh /app/
-RUN chmod +x /app/docker-entrypoint.sh
