@@ -4,12 +4,11 @@ previews:
 services:
   - type: web
     runtime: docker
-    name: laudspeaker
+    name: astrazen
     repo: https://github.com/GeniusPlums/redesigned-adventure.git
     region: singapore
     plan: starter
-    buildCommand: docker-compose -f docker-compose.prod.yml build
-    startCommand: docker-compose -f docker-compose.prod.yml up
+    dockerCommand: docker-compose -f docker-compose.prod.yml up
     autoDeploy: true
     scaling:
       minInstances: 1
@@ -46,10 +45,7 @@ services:
           name: laudspeaker-redis
           property: port
       - key: REDIS_PASSWORD
-        fromService:
-          type: redis
-          name: laudspeaker-redis
-          property: password
+        generateValue: true
 
       # Clickhouse Configuration
       - key: CLICKHOUSE_HOST
